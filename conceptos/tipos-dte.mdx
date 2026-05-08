@@ -1,0 +1,80 @@
+---
+title: "Los 8 tipos de DTE soportados para emitir con Folyo"
+description: "Conoce los 8 tipos de Documentos Tributarios Electrónicos soportados por Folyo: facturas, boletas, notas de crédito, débito, exportación y más."
+---
+
+En Chile, el SII define distintos tipos de Documentos Tributarios Electrónicos (DTE) según el tipo de transacción, el receptor y la afectación tributaria del IVA. Folyo soporta los 8 tipos más utilizados por empresas y desarrolladores, y puedes emitir cualquiera de ellos con exactamente la misma llamada a la API — solo cambia el campo `tipo_dte` en el cuerpo de la petición.
+
+## Documentos soportados
+
+<CardGroup cols={2}>
+  <Card title="33 · Factura Electrónica" icon="file-invoice-dollar">
+    Documento principal para transacciones comerciales gravadas con IVA entre empresas (B2B). Es el DTE más utilizado en Chile para ventas afectas.
+  </Card>
+  <Card title="34 · Factura No Afecta o Exenta" icon="file-invoice">
+    Para ventas o servicios que están exentos de IVA o no afectos, como ciertos servicios profesionales o exportaciones de servicios.
+  </Card>
+  <Card title="39 · Boleta Electrónica" icon="receipt">
+    Documento para ventas al consumidor final (B2C). El IVA queda incluido en el precio y no se desglosa en el documento.
+  </Card>
+  <Card title="41 · Boleta No Afecta o Exenta" icon="file-lines">
+    Equivalente a la boleta electrónica, pero para transacciones no gravadas con IVA destinadas a consumidores finales.
+  </Card>
+  <Card title="52 · Guía de Despacho Electrónica" icon="truck">
+    Ampara el traslado físico de mercaderías. Se usa cuando los bienes se despachan antes de emitir la factura definitiva.
+  </Card>
+  <Card title="56 · Nota de Débito Electrónica" icon="circle-plus">
+    Corrige una factura emitida anteriormente **aumentando** el monto cobrado, por ejemplo al agregar cargos o corregir un precio inferior al real.
+  </Card>
+  <Card title="61 · Nota de Crédito Electrónica" icon="circle-minus">
+    Corrige una factura emitida anteriormente **reduciendo** el monto, por ejemplo para aplicar descuentos, devoluciones parciales o anular el documento.
+  </Card>
+  <Card title="110 · Factura de Exportación" icon="globe">
+    Para operaciones de exportación internacional. No incluye IVA y requiere datos adicionales del receptor extranjero.
+  </Card>
+</CardGroup>
+
+## Tabla de referencia rápida
+
+| Código | Nombre | Afectación IVA | Receptor típico |
+|--------|--------|---------------|-----------------|
+| 33 | Factura Electrónica | Afecta | Empresa (RUT) |
+| 34 | Factura No Afecta o Exenta | Sin IVA | Empresa (RUT) |
+| 39 | Boleta Electrónica | Afecta (incluida) | Consumidor final |
+| 41 | Boleta No Afecta o Exenta | Sin IVA | Consumidor final |
+| 52 | Guía de Despacho Electrónica | Variable | Empresa o persona |
+| 56 | Nota de Débito Electrónica | Igual al doc. original | Empresa (RUT) |
+| 61 | Nota de Crédito Electrónica | Igual al doc. original | Empresa (RUT) |
+| 110 | Factura de Exportación | Exenta / IVA 0% | Receptor extranjero |
+
+## Cómo especificar el tipo en la API
+
+El tipo de DTE se indica en el campo `tipo_dte` del cuerpo de la petición a `POST /v1/dte/emitir`:
+
+```json solicitud.json
+{
+  "tipo_dte": 33,
+  "receptor": {
+    "rut": "12345678-9",
+    "razon_social": "Empresa Ejemplo SpA",
+    "giro": "Comercio",
+    "direccion": "Av. Ejemplo 123",
+    "ciudad": "Santiago"
+  },
+  "detalle": [
+    { "nombre": "Servicio de desarrollo", "cantidad": 1, "precio_unitario": 100000 }
+  ]
+}
+```
+
+<Tip>
+  Para emitir una Nota de Crédito (61) o una Nota de Débito (56) debes incluir el campo `referencia` con el folio y tipo del documento original que estás corrigiendo. Consulta la guía [Notas de crédito y débito](/guias/notas-credito-debito) para ver el ejemplo completo.
+</Tip>
+
+## ¿Factura o boleta?
+
+La diferencia principal entre una **factura** y una **boleta** es que la factura requiere el RUT del receptor y permite al comprador usar el IVA como crédito fiscal. La boleta se emite a consumidores finales y no desgrega el impuesto.
+
+<Note>
+  El SII exige que uses el tipo de DTE correcto según la naturaleza de la transacción. Emitir una boleta en lugar de una factura cuando el comprador es una empresa puede resultar en observaciones o multas tributarias.
+</Note>

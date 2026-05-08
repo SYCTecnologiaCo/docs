@@ -1,0 +1,135 @@
+---
+title: "Emitir Boletas Electrónicas (DTE tipo 39) con Folyo"
+description: "Aprende a emitir Boletas Electrónicas (tipo DTE 39) para ventas a consumidores finales con la API de Folyo, con ejemplos listos para usar."
+---
+
+La Boleta Electrónica (tipo DTE 39) es el documento tributario para ventas directas a consumidores finales (B2C). A diferencia de la Factura Electrónica, la boleta no requiere los datos completos del receptor: en la mayoría de los casos solo necesitas el RUT del comprador, o incluso puedes usar el RUT genérico para ventas anónimas. Con Folyo, emitir una boleta funciona exactamente igual que emitir una factura: un solo `POST` y el documento queda registrado en el SII.
+
+## Diferencias entre boleta y factura
+
+| Característica | Boleta (39) | Factura (33) |
+|---|---|---|
+| Uso | B2C — consumidores finales | B2B — empresas |
+| Datos del receptor | Solo RUT (opcional) | RUT, razón social, giro, dirección, ciudad |
+| IVA en el documento | Incluido en el precio (no desglosado) | Desglosado como monto neto + IVA |
+| Crédito tributario | No otorga | Sí otorga |
+
+## Campos requeridos
+
+Para emitir una Boleta Electrónica, el cuerpo de la petición requiere:
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `tipo_dte` | `number` | Debe ser `39` para Boleta Electrónica |
+| `receptor.rut` | `string` | RUT del comprador. Usa `66666666-6` si no lo conoces |
+| `detalle` | `array` | Lista de ítems de la boleta |
+| `detalle[].nombre` | `string` | Descripción del producto o servicio |
+| `detalle[].cantidad` | `number` | Cantidad de unidades |
+| `detalle[].precio_unitario` | `number` | Precio unitario en pesos chilenos (precio final con IVA incluido) |
+
+## Cómo emitir una boleta
+
+<Steps>
+  <Step title="Obtén el RUT del comprador (si lo tienes)">
+    Para boletas, el RUT del receptor es opcional. Si el comprador te lo entrega, inclúyelo en la petición. Si no, usa el RUT genérico `66666666-6`.
+  </Step>
+  <Step title="Define el detalle con precios finales">
+    En boletas, los precios se expresan con IVA incluido (precio final al consumidor). Folyo los registra correctamente en el SII.
+  </Step>
+  <Step title="Envía la petición a la API">
+    Haz un `POST` a `https://api.folyo.cl/v1/dte/emitir` con tu API key y el cuerpo en formato JSON.
+  </Step>
+  <Step title="Guarda el track_id">
+    La respuesta incluye un `track_id` para consultar el estado del documento en el SII.
+  </Step>
+</Steps>
+
+## Ejemplo de emisión
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.folyo.cl/v1/dte/emitir \
+  -H "Authorization: Bearer <tu_api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tipo_dte": 39,
+    "receptor": {
+      "rut": "66666666-6"
+    },
+    "detalle": [
+      {
+        "nombre": "Producto de ejemplo",
+        "cantidad": 2,
+        "precio_unitario": 15000
+      }
+    ]
+  }'
+```
+
+```javascript Node.js
+const response = await fetch('https://api.folyo.cl/v1/dte/emitir', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer <tu_api_key>',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    tipo_dte: 39,
+    receptor: {
+      rut: '66666666-6',
+    },
+    detalle: [
+      { nombre: 'Producto de ejemplo', cantidad: 2, precio_unitario: 15000 },
+    ],
+  }),
+});
+
+const data = await response.json();
+console.log(data.track_id);
+```
+
+</CodeGroup>
+
+## Respuesta esperada
+
+```json Respuesta exitosa
+{
+  "ok": true,
+  "data": {
+    "track_id": "TRK-2026-00041901",
+    "folio": 158,
+    "tipo_dte": 39,
+    "monto_total": 30000,
+    "timestamp": "2026-05-08T15:10:42.000Z",
+    "estado_sii": "ACEPTADO"
+  }
+}
+```
+
+## RUT genérico para ventas anónimas
+
+Cuando no conoces el RUT del comprador, el SII acepta el RUT genérico `66666666-6` para registrar ventas a consumidores anónimos. Este RUT está habilitado oficialmente para este propósito y es ampliamente usado en comercio electrónico y puntos de venta.
+
+```json Receptor anónimo
+{
+  "receptor": {
+    "rut": "66666666-6"
+  }
+}
+```
+
+<Tip>
+Si tus productos o servicios están exentos de IVA (por ejemplo, educación, ciertos servicios de salud, o arriendos de vivienda), puedes usar la **Boleta Electrónica Exenta (tipo DTE 41)** en lugar del tipo 39. La estructura de la petición es idéntica, solo cambia el valor de `tipo_dte` a `41`. Consulta con tu contador si tus servicios califican como exentos.
+</Tip>
+
+## Siguientes pasos
+
+<CardGroup cols={2}>
+  <Card title="Emitir una Factura" icon="file-invoice" href="/guias/emitir-factura">
+    Aprende a emitir Facturas Electrónicas para transacciones B2B con IVA desglosado.
+  </Card>
+  <Card title="Manejo de errores" icon="triangle-exclamation" href="/guias/manejo-errores">
+    Aprende a interpretar y manejar los errores que puede retornar la API.
+  </Card>
+</CardGroup>

@@ -1,0 +1,96 @@
+---
+title: "Cómo Folyo gestiona la integración con el SII por ti"
+description: "Aprende qué es el SII, qué gestiona Folyo en tu nombre y qué requisitos debes cumplir para emitir DTEs con validez tributaria en Chile."
+---
+
+El SII (Servicio de Impuestos Internos) es el organismo del Estado chileno responsable de fiscalizar y recaudar los impuestos internos, incluido el IVA. Para que un documento tributario electrónico sea legalmente válido en Chile, debe ser enviado, firmado y aceptado por el SII siguiendo un protocolo técnico estricto. Folyo actúa como intermediario calificado que maneja toda esa complejidad por ti, para que puedas emitir DTEs válidos con una sola llamada API.
+
+## Qué gestiona Folyo por ti
+
+Integrar directamente con el SII sin un intermediario requiere implementar firma digital con certificados X.509, formatear los documentos según estrictos esquemas técnicos, gestionar sesiones de autenticación y manejar la lógica de seguimiento de envíos. Folyo elimina esa carga:
+
+<CardGroup cols={2}>
+  <Card title="Gestión de certificados digitales" icon="certificate">
+    Folyo administra los certificados de firma digital del emisor. No necesitas comprar, instalar ni renovar certificados electrónicos. La rotación se hace automáticamente.
+  </Card>
+  <Card title="Firma digital del documento" icon="signature">
+    Cada DTE es firmado digitalmente con el certificado del emisor antes de ser transmitido. La firma garantiza la integridad y autenticidad del documento ante el SII.
+  </Card>
+  <Card title="Envío y comunicación con el SII" icon="paper-plane">
+    Folyo se comunica con el SII en tu nombre, gestionando la autenticación, la sesión y los reintentos automáticos ante errores transitorios.
+  </Card>
+  <Card title="Acuse de recibo (ACK)" icon="circle-check">
+    Folyo procesa el acuse de recibo del SII (`RECIBIDO`, `ACEPTADO`, `RECHAZADO`) y te expone el estado en un formato JSON limpio a través del endpoint de consulta.
+  </Card>
+</CardGroup>
+
+## Qué no necesitas hacer tú
+
+Como desarrollador que usa Folyo, no necesitas:
+
+- Implementar los protocolos de comunicación del SII.
+- Construir o validar el esquema XML del DTE manualmente.
+- Gestionar tokens de autenticación con el SII.
+- Conocer los detalles del estándar técnico chileno de facturación electrónica.
+- Administrar certificados digitales ni sus fechas de vencimiento.
+- Manejar reintentos ante errores de conectividad con el SII.
+
+Tu responsabilidad es enviar los datos correctos del documento (emisor, receptor, detalle) y Folyo se encarga del resto.
+
+## Requisitos del SII que debes cumplir
+
+Aunque Folyo abstrae la complejidad técnica, existen requisitos tributarios que dependen de los datos que tú proporcionas:
+
+<Info>
+  El RUT del receptor debe existir y estar activo en el registro del SII. Puedes verificar cualquier RUT en el [portal del SII](https://zeus.sii.cl/cvc/stc/tc.html) antes de emitir un documento. Folyo valida el formato del RUT, pero no consulta el registro del SII en tiempo real por cada petición.
+</Info>
+
+<Info>
+  El emisor debe estar habilitado para emitir DTEs en el SII con la modalidad de Facturación Electrónica. Folyo verifica esto durante la configuración inicial de tu cuenta — si tu empresa no está habilitada, te guiamos en el proceso de inscripción.
+</Info>
+
+### Datos obligatorios según tipo de DTE
+
+| Campo | Facturas (33/34) | Boletas (39/41) | Exportación (110) |
+|-------|:---:|:---:|:---:|
+| RUT receptor | Obligatorio | Opcional | Obligatorio |
+| Razón social receptor | Obligatorio | Opcional | Obligatorio |
+| Giro del receptor | Recomendado | No aplica | Obligatorio |
+| Datos del receptor extranjero | No aplica | No aplica | Obligatorio |
+| Referencia a doc. original | Solo N/D y N/C | Solo N/D y N/C | Según caso |
+
+## Ambientes disponibles
+
+Folyo ofrece dos ambientes separados para que puedas probar sin afectar tu producción:
+
+<CardGroup cols={2}>
+  <Card title="Ambiente de certificación" icon="flask">
+    Conectado al ambiente de certificación del SII. Los documentos emitidos aquí no tienen valor tributario. Usa tu API key de pruebas para desarrollo e integración.
+
+    ```text
+    https://api.folyo.cl/v1 (con API key de sandbox)
+    ```
+  </Card>
+  <Card title="Ambiente de producción" icon="building">
+    Conectado al SII real. Todos los documentos emitidos tienen valor tributario legal y son visibles en el portal del SII. Usa tu API key de producción.
+
+    ```text
+    https://api.folyo.cl/v1 (con API key de producción)
+    ```
+  </Card>
+</CardGroup>
+
+<Warning>
+  No uses tu API key de producción durante el desarrollo ni las pruebas. Los DTEs emitidos en producción **tienen validez legal** y no se pueden eliminar del registro del SII — solo se pueden anular mediante una Nota de Crédito (tipo 61).
+</Warning>
+
+## Plazos y obligaciones tributarias
+
+El SII establece plazos para ciertas acciones relacionadas con los DTEs recibidos. Aunque Folyo gestiona la emisión, como emisor eres responsable de:
+
+- Emitir el DTE en el momento de la transacción o antes del traslado de bienes (en el caso de la Guía de Despacho).
+- Conservar los XML firmados de todos los documentos emitidos por el período que exige la ley (actualmente 6 años).
+
+<Note>
+  Folyo almacena una copia de cada DTE emitido a través de la plataforma. Puedes descargar el XML firmado de cualquier documento desde el dashboard o mediante la API en cualquier momento.
+</Note>

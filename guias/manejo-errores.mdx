@@ -1,0 +1,161 @@
+---
+title: "Cómo manejar errores de la API de Folyo correctamente"
+description: "Aprende a interpretar los códigos de error HTTP y los códigos internos de la API de Folyo para depurar emisiones fallidas y construir integraciones robustas."
+---
+
+La API de Folyo usa códigos de estado HTTP estándar para indicar el resultado de cada petición. Cuando ocurre un error, la respuesta incluye además un objeto `error` con un código interno, un mensaje descriptivo y, cuando aplica, el campo específico que causó el problema. Entender estos códigos te permitirá construir una integración robusta que maneje cada tipo de fallo de forma correcta.
+
+## Códigos de estado HTTP
+
+| Código | Estado | Descripción |
+|---|---|---|
+| `200` | OK | El DTE fue emitido y aceptado exitosamente por el SII |
+| `400` | Bad Request | Los datos enviados son inválidos o incompletos (error de validación) |
+| `401` | Unauthorized | La API key es inválida, está expirada o no fue enviada |
+| `422` | Unprocessable Entity | El SII recibió el documento pero lo rechazó por errores de contenido |
+| `429` | Too Many Requests | Superaste el límite de peticiones permitidas en el período de tiempo |
+| `500` | Internal Server Error | Error interno en los servidores de Folyo |
+
+## Formato de error
+
+Todos los errores retornan un cuerpo JSON con la siguiente estructura:
+
+```json Ejemplo de respuesta de error
+{
+  "ok": false,
+  "error": {
+    "code": "INVALID_RUT",
+    "message": "El RUT del receptor es inválido",
+    "field": "receptor.rut"
+  }
+}
+```
+
+| Campo | Descripción |
+|---|---|
+| `ok` | Siempre `false` cuando hay un error |
+| `error.code` | Código interno del error (ver tabla a continuación) |
+| `error.message` | Descripción legible del error en español |
+| `error.field` | Campo que causó el error (presente solo en errores de validación) |
+
+## Códigos de error internos
+
+| Código | Estado HTTP | Descripción |
+|---|---|---|
+| `INVALID_RUT` | `400` | El RUT proporcionado tiene un formato inválido o el dígito verificador es incorrecto |
+| `MISSING_FIELD` | `400` | Falta un campo requerido en el cuerpo de la petición |
+| `INVALID_API_KEY` | `401` | La API key no existe, fue revocada o no se incluyó en el header `Authorization` |
+| `SII_REJECTED` | `422` | El SII recibió el documento pero lo rechazó. Revisa el `track_id` para obtener detalles |
+| `RATE_LIMIT_EXCEEDED` | `429` | Se superó el límite de peticiones. Espera antes de reintentar |
+| `INTERNAL_ERROR` | `500` | Error inesperado en Folyo. Si persiste, contacta soporte |
+
+## Manejo de errores en código
+
+El siguiente ejemplo muestra cómo capturar y manejar los distintos tipos de error en JavaScript:
+
+```javascript Node.js
+async function emitirDTE(datos) {
+  const response = await fetch('https://api.folyo.cl/v1/dte/emitir', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer <tu_api_key>',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(datos),
+  });
+
+  const resultado = await response.json();
+
+  if (!response.ok) {
+    const { code, message, field } = resultado.error;
+
+    switch (code) {
+      case 'INVALID_RUT':
+        console.error(`RUT inválido en el campo "${field}": ${message}`);
+        break;
+
+      case 'MISSING_FIELD':
+        console.error(`Campo requerido faltante "${field}": ${message}`);
+        break;
+
+      case 'INVALID_API_KEY':
+        console.error('API key inválida. Verifica tu configuración de autenticación.');
+        break;
+
+      case 'SII_REJECTED':
+        console.error(`El SII rechazó el documento. Revisa el estado con el track_id.`);
+        // Guardar el track_id para consultar el rechazo detallado
+        break;
+
+      case 'RATE_LIMIT_EXCEEDED':
+        console.warn('Límite de peticiones alcanzado. Reintentando en 60 segundos...');
+        await new Promise(resolve => setTimeout(resolve, 60000));
+        return emitirDTE(datos); // Reintentar
+        break;
+
+      default:
+        console.error(`Error inesperado (${code}): ${message}`);
+    }
+
+    throw new Error(`Error al emitir DTE: ${message}`);
+  }
+
+  return resultado.data;
+}
+```
+
+## Errores de validación (`400`)
+
+Los errores `400` ocurren antes de llegar al SII: Folyo valida los datos de tu petición y retorna el primer campo inválido que encuentra. Revisa el campo `error.field` para identificar exactamente qué dato corregir.
+
+```json Error 400 — campo faltante
+{
+  "ok": false,
+  "error": {
+    "code": "MISSING_FIELD",
+    "message": "El campo 'receptor.razon_social' es requerido para facturas electrónicas",
+    "field": "receptor.razon_social"
+  }
+}
+```
+
+## Rechazos del SII (`422`)
+
+Un `422` indica que Folyo procesó la petición correctamente, pero el SII rechazó el documento por razones tributarias. Este es el error más importante de manejar porque el documento fue generado y tiene un folio asignado, aunque no fue aceptado.
+
+<Tip>
+Cuando recibes un error `422` con código `SII_REJECTED`, guarda el `track_id` que viene en la respuesta. Puedes usarlo para consultar el motivo detallado del rechazo directamente en el endpoint `GET https://api.folyo.cl/v1/dte/{track_id}/estado`. El SII entrega una descripción específica del rechazo que te ayudará a corregir el documento.
+</Tip>
+
+```json Error 422 — rechazo del SII
+{
+  "ok": false,
+  "error": {
+    "code": "SII_REJECTED",
+    "message": "El SII rechazó el documento. Consulta el estado con el track_id para obtener el detalle.",
+    "field": null
+  },
+  "data": {
+    "track_id": "TRK-2026-00042001"
+  }
+}
+```
+
+## Límite de peticiones (`429`)
+
+Si alcanzas el límite de peticiones, la respuesta incluye el header `Retry-After` con el número de segundos que debes esperar antes de reintentar.
+
+```json Error 429 — rate limit
+{
+  "ok": false,
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Superaste el límite de peticiones. Intenta nuevamente en 60 segundos.",
+    "field": null
+  }
+}
+```
+
+<Note>
+Si experimentas errores `500` de forma recurrente o un comportamiento inesperado que no puedes resolver con esta guía, contacta al equipo de soporte de Folyo en [soporte@folyo.cl](mailto:soporte@folyo.cl) e incluye el `track_id` de las emisiones afectadas para agilizar el diagnóstico.
+</Note>

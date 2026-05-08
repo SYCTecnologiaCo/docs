@@ -1,0 +1,147 @@
+---
+title: "Emitir una Factura Electrónica (tipo 33) con Folyo"
+description: "Aprende a emitir una Factura Electrónica (tipo DTE 33) con la API de Folyo, incluyendo los campos requeridos y ejemplos de código en cURL y Node.js."
+---
+
+La Factura Electrónica (tipo DTE 33) es el documento tributario utilizado en transacciones entre empresas (B2B) y corresponde a ventas o servicios afectos a IVA. Con Folyo, emitir una factura es tan simple como enviar un `POST` con los datos del receptor y el detalle de los ítems: Folyo calcula el IVA automáticamente, firma el documento y lo envía al SII en menos de 2 segundos.
+
+## Campos requeridos
+
+Para emitir una Factura Electrónica necesitas los siguientes campos en el cuerpo de la petición:
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `tipo_dte` | `number` | Debe ser `33` para Factura Electrónica |
+| `receptor.rut` | `string` | RUT del receptor con dígito verificador (ej. `76354771-K`) |
+| `receptor.razon_social` | `string` | Razón social de la empresa receptora |
+| `receptor.giro` | `string` | Giro comercial del receptor |
+| `receptor.direccion` | `string` | Dirección del receptor |
+| `receptor.ciudad` | `string` | Ciudad del receptor |
+| `detalle` | `array` | Lista de ítems de la factura |
+| `detalle[].nombre` | `string` | Descripción del producto o servicio |
+| `detalle[].cantidad` | `number` | Cantidad de unidades |
+| `detalle[].precio_unitario` | `number` | Precio unitario en pesos chilenos (neto, sin IVA) |
+
+<Note>
+El IVA del 19% se calcula y agrega automáticamente sobre el monto neto total del detalle. No necesitas incluirlo manualmente en tu petición.
+</Note>
+
+## Cómo emitir una factura
+
+<Steps>
+  <Step title="Prepara los datos del receptor">
+    Reúne el RUT, razón social, giro, dirección y ciudad de tu cliente. Estos datos deben ser exactos, ya que el SII los valida al recibir el documento.
+  </Step>
+  <Step title="Define el detalle de la factura">
+    Arma el arreglo `detalle` con cada producto o servicio que quieres facturar. Cada ítem requiere nombre, cantidad y precio unitario neto.
+  </Step>
+  <Step title="Envía la petición a la API">
+    Haz un `POST` a `https://api.folyo.cl/v1/dte/emitir` con tu API key en el header de autorización y el cuerpo en formato JSON.
+  </Step>
+  <Step title="Guarda el track_id de la respuesta">
+    La respuesta incluye un `track_id` que puedes usar para consultar el estado del documento en el SII y confirmar que fue aceptado.
+  </Step>
+</Steps>
+
+## Ejemplo de emisión
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.folyo.cl/v1/dte/emitir \
+  -H "Authorization: Bearer <tu_api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tipo_dte": 33,
+    "receptor": {
+      "rut": "76354771-K",
+      "razon_social": "Empresa Cliente SpA",
+      "giro": "Comercio al por mayor",
+      "direccion": "Av. Apoquindo 5678",
+      "ciudad": "Santiago"
+    },
+    "detalle": [
+      {
+        "nombre": "Consultoría mensual",
+        "cantidad": 1,
+        "precio_unitario": 500000
+      },
+      {
+        "nombre": "Licencia de software",
+        "cantidad": 3,
+        "precio_unitario": 50000
+      }
+    ]
+  }'
+```
+
+```javascript Node.js
+const response = await fetch('https://api.folyo.cl/v1/dte/emitir', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer <tu_api_key>',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    tipo_dte: 33,
+    receptor: {
+      rut: '76354771-K',
+      razon_social: 'Empresa Cliente SpA',
+      giro: 'Comercio al por mayor',
+      direccion: 'Av. Apoquindo 5678',
+      ciudad: 'Santiago',
+    },
+    detalle: [
+      { nombre: 'Consultoría mensual', cantidad: 1, precio_unitario: 500000 },
+      { nombre: 'Licencia de software', cantidad: 3, precio_unitario: 50000 },
+    ],
+  }),
+});
+
+const data = await response.json();
+console.log(data.track_id);
+```
+
+</CodeGroup>
+
+## Respuesta esperada
+
+Cuando la emisión es exitosa, la API retorna un `200 OK` con el siguiente cuerpo:
+
+```json Respuesta exitosa
+{
+  "ok": true,
+  "data": {
+    "track_id": "TRK-2026-00041872",
+    "folio": 42,
+    "tipo_dte": 33,
+    "monto_neto": 650000,
+    "monto_iva": 123500,
+    "monto_total": 773500,
+    "timestamp": "2026-05-08T14:32:10.000Z",
+    "estado_sii": "ACEPTADO"
+  }
+}
+```
+
+| Campo | Descripción |
+|---|---|
+| `track_id` | Identificador único de la emisión en Folyo |
+| `folio` | Número de folio asignado por el SII |
+| `tipo_dte` | Tipo de documento emitido (`33`) |
+| `monto_neto` | Monto neto sin IVA en pesos chilenos |
+| `monto_iva` | IVA calculado (19%) en pesos chilenos |
+| `monto_total` | Total con IVA incluido |
+| `timestamp` | Fecha y hora de emisión en UTC |
+| `estado_sii` | Estado de recepción en el SII |
+
+## Siguientes pasos
+
+<CardGroup cols={2}>
+  <Card title="Emitir una Boleta" icon="receipt" href="/guias/emitir-boleta">
+    Aprende a emitir boletas electrónicas para ventas a consumidores finales.
+  </Card>
+  <Card title="Notas de crédito y débito" icon="file-pen" href="/guias/notas-credito-debito">
+    Corrige o anula facturas emitidas usando notas de crédito o débito.
+  </Card>
+</CardGroup>

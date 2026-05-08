@@ -1,0 +1,284 @@
+---
+title: "POST /dte/emitir — Emite facturas y boletas al SII"
+description: "Referencia completa del endpoint POST /dte/emitir para emitir facturas, boletas, notas de crédito y otros DTE ante el SII desde tu aplicación."
+---
+
+El endpoint `POST /dte/emitir` es el corazón de la API de Folyo. Recibe los datos de tu documento tributario, lo firma digitalmente con tu certificado, solicita el folio CAF correspondiente al SII y envía el DTE para su timbraje y aceptación, todo en un solo request. Soporta los ocho tipos de DTE habilitados: facturas afectas (33), facturas exentas (34), boletas afectas (39), boletas exentas (41), guías de despacho (52), notas de débito (56), notas de crédito (61) y facturas de exportación (110).
+
+**Endpoint:** `POST https://api.folyo.cl/v1/dte/emitir`
+
+## Parámetros del body
+
+<ParamField body="tipo_dte" type="integer" required>
+  Código numérico del tipo de DTE a emitir. Los valores soportados son:
+
+  | Código | Tipo de documento |
+  |--------|-------------------|
+  | `33` | Factura electrónica afecta |
+  | `34` | Factura electrónica exenta |
+  | `39` | Boleta electrónica afecta |
+  | `41` | Boleta electrónica exenta |
+  | `52` | Guía de despacho electrónica |
+  | `56` | Nota de débito electrónica |
+  | `61` | Nota de crédito electrónica |
+  | `110` | Factura de exportación electrónica |
+</ParamField>
+
+<ParamField body="receptor" type="object" required>
+  Datos del receptor (cliente) del documento. Los campos requeridos varían según el `tipo_dte`.
+
+  <Expandable title="Propiedades de receptor">
+    <ParamField body="receptor.rut" type="string" required>
+      RUT del receptor. Se acepta con puntos y guión (`12.345.678-9`) o sin puntos (`12345678-9`). Para consumidores finales en boletas (tipo 39/41) puedes usar `66666666-6` cuando el RUT es desconocido.
+    </ParamField>
+
+    <ParamField body="receptor.razon_social" type="string">
+      Razón social del receptor. **Requerido** para tipos de DTE 33, 34, 52, 56, 61 y 110. No se requiere para boletas (39/41).
+    </ParamField>
+
+    <ParamField body="receptor.giro" type="string">
+      Giro o actividad comercial del receptor. **Requerido** para tipos de DTE 33, 34, 52, 56, 61 y 110.
+    </ParamField>
+
+    <ParamField body="receptor.direccion" type="string">
+      Dirección comercial del receptor. **Requerido** para tipos de DTE 33, 34, 52, 56, 61 y 110.
+    </ParamField>
+
+    <ParamField body="receptor.ciudad" type="string">
+      Ciudad del receptor. **Requerido** para tipos de DTE 33, 34, 52, 56, 61 y 110.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="detalle" type="object[]" required>
+  Lista de ítems que componen el documento. Debe contener al menos un elemento.
+
+  <Expandable title="Propiedades de cada ítem en detalle">
+    <ParamField body="detalle[].nombre" type="string" required>
+      Descripción del ítem o servicio. Máximo 80 caracteres.
+    </ParamField>
+
+    <ParamField body="detalle[].cantidad" type="integer" required>
+      Cantidad de unidades. Debe ser mayor a `0`.
+    </ParamField>
+
+    <ParamField body="detalle[].precio_unitario" type="integer" required>
+      Precio unitario en pesos chilenos (CLP). Para facturas afectas (tipo 33) este valor debe ser **sin IVA**; Folyo calculará y agregará el IVA automáticamente. Para documentos exentos (tipo 34, 41) el precio se trata como exento de IVA.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="referencia" type="object">
+  Referencia a un documento tributario anterior. **Requerido** para notas de crédito (61) y notas de débito (56). Opcional para otros tipos.
+
+  <Expandable title="Propiedades de referencia">
+    <ParamField body="referencia.tipo_dte_ref" type="integer">
+      Tipo de DTE del documento referenciado (p. ej. `33` para referenciar una factura afecta).
+    </ParamField>
+
+    <ParamField body="referencia.folio_ref" type="integer">
+      Número de folio del documento referenciado.
+    </ParamField>
+
+    <ParamField body="referencia.razon" type="string">
+      Razón o motivo de la referencia (p. ej. `"Anulación de factura"`, `"Corrección de monto"`). Máximo 90 caracteres.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Respuesta exitosa
+
+Cuando el documento se emite correctamente, la API responde con HTTP `200` y el siguiente body:
+
+<ResponseField name="ok" type="boolean" required>
+  `true` cuando la emisión fue exitosa.
+</ResponseField>
+
+<ResponseField name="track_id" type="string" required>
+  Identificador único de seguimiento del documento generado por Folyo. Úsalo para consultar el estado del DTE con los endpoints `GET /dte/{track_id}` y `GET /dte/{track_id}/estado`.
+</ResponseField>
+
+<ResponseField name="folio" type="integer" required>
+  Número de folio asignado al documento por el CAF del SII.
+</ResponseField>
+
+<ResponseField name="tipo_dte" type="integer" required>
+  Código del tipo de DTE emitido, igual al valor enviado en el request.
+</ResponseField>
+
+<ResponseField name="emitido_en" type="string" required>
+  Timestamp de emisión en formato ISO 8601 UTC (p. ej. `"2026-05-08T14:32:00Z"`).
+</ResponseField>
+
+## Ejemplos
+
+<CodeGroup>
+
+```bash cURL — Factura afecta (tipo 33)
+curl --request POST \
+  --url https://api.folyo.cl/v1/dte/emitir \
+  --header 'Authorization: Bearer tu_api_key' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "tipo_dte": 33,
+    "receptor": {
+      "rut": "76.123.456-7",
+      "razon_social": "Empresa Ejemplo SpA",
+      "giro": "Desarrollo de software",
+      "direccion": "Av. Providencia 1234, Of. 501",
+      "ciudad": "Santiago"
+    },
+    "detalle": [
+      {
+        "nombre": "Licencia de software anual",
+        "cantidad": 1,
+        "precio_unitario": 500000
+      },
+      {
+        "nombre": "Soporte técnico mensual",
+        "cantidad": 3,
+        "precio_unitario": 80000
+      }
+    ]
+  }'
+```
+
+```bash cURL — Boleta electrónica (tipo 39)
+curl --request POST \
+  --url https://api.folyo.cl/v1/dte/emitir \
+  --header 'Authorization: Bearer tu_api_key' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "tipo_dte": 39,
+    "receptor": {
+      "rut": "12.345.678-9"
+    },
+    "detalle": [
+      {
+        "nombre": "Suscripción mensual Plan Pro",
+        "cantidad": 1,
+        "precio_unitario": 19990
+      }
+    ]
+  }'
+```
+
+```bash cURL — Nota de crédito (tipo 61)
+curl --request POST \
+  --url https://api.folyo.cl/v1/dte/emitir \
+  --header 'Authorization: Bearer tu_api_key' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "tipo_dte": 61,
+    "receptor": {
+      "rut": "76.123.456-7",
+      "razon_social": "Empresa Ejemplo SpA",
+      "giro": "Desarrollo de software",
+      "direccion": "Av. Providencia 1234, Of. 501",
+      "ciudad": "Santiago"
+    },
+    "detalle": [
+      {
+        "nombre": "Anulación parcial — Soporte técnico",
+        "cantidad": 1,
+        "precio_unitario": 80000
+      }
+    ],
+    "referencia": {
+      "tipo_dte_ref": 33,
+      "folio_ref": 125,
+      "razon": "Anulación parcial de factura"
+    }
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.folyo.cl/v1/dte/emitir', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer tu_api_key',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    tipo_dte: 33,
+    receptor: {
+      rut: '76.123.456-7',
+      razon_social: 'Empresa Ejemplo SpA',
+      giro: 'Desarrollo de software',
+      direccion: 'Av. Providencia 1234, Of. 501',
+      ciudad: 'Santiago',
+    },
+    detalle: [
+      {
+        nombre: 'Licencia de software anual',
+        cantidad: 1,
+        precio_unitario: 500000,
+      },
+    ],
+  }),
+});
+
+const data = await response.json();
+
+if (data.ok) {
+  console.log('DTE emitido. Track ID:', data.track_id);
+  console.log('Folio:', data.folio);
+} else {
+  console.error('Error:', data.error.code, data.error.message);
+}
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.folyo.cl/v1/dte/emitir',
+    headers={
+        'Authorization': 'Bearer tu_api_key',
+        'Content-Type': 'application/json',
+    },
+    json={
+        'tipo_dte': 33,
+        'receptor': {
+            'rut': '76.123.456-7',
+            'razon_social': 'Empresa Ejemplo SpA',
+            'giro': 'Desarrollo de software',
+            'direccion': 'Av. Providencia 1234, Of. 501',
+            'ciudad': 'Santiago',
+        },
+        'detalle': [
+            {
+                'nombre': 'Licencia de software anual',
+                'cantidad': 1,
+                'precio_unitario': 500000,
+            }
+        ],
+    }
+)
+
+data = response.json()
+
+if data['ok']:
+    print(f"DTE emitido. Track ID: {data['track_id']}")
+    print(f"Folio: {data['folio']}")
+else:
+    print(f"Error: {data['error']['code']} — {data['error']['message']}")
+```
+
+</CodeGroup>
+
+**Respuesta exitosa:**
+
+```json
+{
+  "ok": true,
+  "track_id": "folyo_abc123xyz",
+  "folio": 125,
+  "tipo_dte": 33,
+  "emitido_en": "2026-05-08T14:32:00Z"
+}
+```
+
+<Note>
+La emisión exitosa no garantiza que el SII haya aceptado el documento de forma definitiva. El timbraje puede tomar algunos minutos. Usa `GET /dte/{track_id}/estado` para confirmar que el estado del DTE es `ACEPTADO` antes de entregarlo al receptor como comprobante definitivo.
+</Note>

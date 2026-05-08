@@ -1,0 +1,194 @@
+---
+title: "Códigos de error HTTP y de aplicación de la API Folyo"
+description: "Guía completa de los códigos HTTP y de aplicación que devuelve la API de Folyo, con ejemplos de manejo de errores en JavaScript y Python."
+---
+
+La API de Folyo utiliza códigos de estado HTTP estándar para indicar el resultado de cada request. Todos los errores tienen el mismo formato de respuesta JSON, lo que hace fácil detectarlos y manejarlos de forma consistente en tu código. Cuando algo falla, el campo `ok` siempre será `false` y el objeto `error` contendrá un código de aplicación, un mensaje descriptivo y —en errores de validación— el campo específico que causó el problema.
+
+## Estructura del error
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "INVALID_RUT",
+    "message": "El RUT del receptor no es válido. Asegúrate de usar el formato XX.XXX.XXX-X o XXXXXXXX-X.",
+    "field": "receptor.rut"
+  }
+}
+```
+
+Los campos del objeto `error` son:
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `code` | string | Código de error de la aplicación. Siempre presente. |
+| `message` | string | Descripción legible del error en español. Siempre presente. |
+| `field` | string | Campo del body que causó el error. Solo presente en errores de validación (`400`). |
+
+## Códigos de estado HTTP
+
+| Código | Significado |
+|--------|-------------|
+| `200` | Operación exitosa. El body contiene el resultado. |
+| `400` | Datos inválidos en el request. Revisa el campo `error.field` para identificar el problema. |
+| `401` | API key inválida, ausente o revocada. |
+| `404` | Recurso no encontrado. El `track_id` no existe en tu cuenta. |
+| `422` | El documento fue rechazado por el SII. Revisa `error.code` y `sii_glosa` para más detalles. |
+| `429` | Rate limit excedido. Espera antes de reintentar. |
+| `500` | Error interno del servidor. Reintenta con backoff exponencial; si persiste, contacta a soporte. |
+
+## Códigos de error de la aplicación
+
+| Código | HTTP | Descripción |
+|--------|------|-------------|
+| `INVALID_API_KEY` | `401` | La API key enviada en el header `Authorization` es inválida o ha sido revocada. Genera una nueva key desde el dashboard. |
+| `MISSING_FIELD` | `400` | Falta un campo requerido en el body del request. El campo `error.field` indica cuál es. |
+| `INVALID_RUT` | `400` | El RUT del receptor o emisor tiene un formato inválido o el dígito verificador no corresponde. |
+| `INVALID_TIPO_DTE` | `400` | El valor de `tipo_dte` no corresponde a ninguno de los tipos soportados (33, 34, 39, 41, 52, 56, 61, 110). |
+| `SII_REJECTED` | `422` | El SII rechazó el documento. Revisa `sii_glosa` en el body de error para conocer el motivo específico. |
+| `RATE_LIMIT_EXCEEDED` | `429` | Se superó el límite de peticiones de tu plan. El header `Retry-After` indica cuántos segundos esperar. |
+| `DOCUMENT_NOT_FOUND` | `404` | El `track_id` enviado no corresponde a ningún documento asociado a tu API key. |
+
+## Manejo de errores en código
+
+<CodeGroup>
+
+```javascript JavaScript
+async function emitirDTE(payload) {
+  const response = await fetch('https://api.folyo.cl/v1/dte/emitir', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer tu_api_key',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+
+  if (!data.ok) {
+    const { code, message, field } = data.error;
+
+    switch (code) {
+      case 'INVALID_API_KEY':
+        throw new Error('API key inválida. Revisa tu configuración.');
+
+      case 'MISSING_FIELD':
+        throw new Error(`Campo requerido faltante: ${field}`);
+
+      case 'INVALID_RUT':
+        throw new Error(`RUT inválido en el campo: ${field}`);
+
+      case 'INVALID_TIPO_DTE':
+        throw new Error('Tipo de DTE no soportado. Usa 33, 34, 39, 41, 52, 56, 61 o 110.');
+
+      case 'SII_REJECTED':
+        // El documento fue rechazado por el SII — puede necesitar corrección manual
+        console.error('SII rechazó el documento:', message);
+        throw new Error(`Rechazo SII: ${message}`);
+
+      case 'RATE_LIMIT_EXCEEDED':
+        const retryAfter = response.headers.get('Retry-After') || 60;
+        console.warn(`Rate limit alcanzado. Reintenta en ${retryAfter} segundos.`);
+        throw new Error('Rate limit excedido.');
+
+      default:
+        throw new Error(`Error inesperado (${code}): ${message}`);
+    }
+  }
+
+  return data;
+}
+```
+
+```python Python
+import requests
+import time
+
+def emitir_dte(payload: dict, api_key: str) -> dict:
+    response = requests.post(
+        'https://api.folyo.cl/v1/dte/emitir',
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+        },
+        json=payload,
+    )
+
+    data = response.json()
+
+    if not data.get('ok'):
+        error = data.get('error', {})
+        code = error.get('code', 'UNKNOWN')
+        message = error.get('message', 'Error desconocido')
+        field = error.get('field')
+
+        if code == 'INVALID_API_KEY':
+            raise ValueError('API key inválida. Revisa tu configuración.')
+
+        elif code == 'MISSING_FIELD':
+            raise ValueError(f'Campo requerido faltante: {field}')
+
+        elif code == 'INVALID_RUT':
+            raise ValueError(f'RUT inválido en el campo: {field}')
+
+        elif code == 'INVALID_TIPO_DTE':
+            raise ValueError('Tipo de DTE no soportado.')
+
+        elif code == 'SII_REJECTED':
+            # El documento fue rechazado por el SII
+            raise RuntimeError(f'Rechazo SII: {message}')
+
+        elif code == 'RATE_LIMIT_EXCEEDED':
+            retry_after = int(response.headers.get('Retry-After', 60))
+            print(f'Rate limit alcanzado. Reintentando en {retry_after}s...')
+            time.sleep(retry_after)
+            return emitir_dte(payload, api_key)  # Reintento único
+
+        else:
+            raise RuntimeError(f'Error inesperado ({code}): {message}')
+
+    return data
+```
+
+</CodeGroup>
+
+## Errores de validación — múltiples campos
+
+Cuando el request contiene varios campos inválidos, la API devuelve el primer error encontrado. Corrige el campo indicado en `error.field` y vuelve a enviar el request.
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "MISSING_FIELD",
+    "message": "El campo 'receptor.razon_social' es requerido para el tipo de DTE 33.",
+    "field": "receptor.razon_social"
+  }
+}
+```
+
+## Errores del servidor (5xx)
+
+Para errores `500`, implementa reintentos con backoff exponencial. No reintentos en errores `4xx` sin corregir el request primero.
+
+```javascript JavaScript — backoff exponencial
+async function emitirConReintentos(payload, maxIntentos = 3) {
+  for (let intento = 1; intento <= maxIntentos; intento++) {
+    try {
+      return await emitirDTE(payload);
+    } catch (err) {
+      if (intento === maxIntentos) throw err;
+
+      const espera = Math.pow(2, intento) * 1000; // 2s, 4s, 8s
+      console.warn(`Intento ${intento} fallido. Reintentando en ${espera}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, espera));
+    }
+  }
+}
+```
+
+<Tip>
+Si el SII rechaza un documento (código `SII_REJECTED`), guarda el `track_id` del intento fallido antes de intentar emitir uno nuevo. Al contactar a soporte en [soporte@folyo.cl](mailto:soporte@folyo.cl), incluye el `track_id` y el valor de `sii_glosa` para que el equipo pueda diagnosticar el rechazo y orientarte sobre cómo corregirlo.
+</Tip>

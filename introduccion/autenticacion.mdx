@@ -1,0 +1,176 @@
+---
+title: "Cómo autenticar tus requests en la API REST de Folyo"
+description: "Aprende cómo obtener tu API key de Folyo y autenticar tus peticiones con el header Authorization: Bearer para acceder a todos los endpoints."
+---
+
+Folyo usa autenticación basada en API keys. Cada petición a la API debe incluir tu clave en el header `Authorization` usando el esquema `Bearer`. Esta página explica cómo obtener tu API key, cómo incluirla en tus peticiones y qué prácticas de seguridad debes seguir para protegerla.
+
+## Obtener tu API key
+
+Las API keys se generan desde el dashboard de Folyo:
+
+1. Inicia sesión en [folyo.cl](https://folyo.cl)
+2. Ve a **Configuración → API Keys**
+3. Haz clic en **Nueva API key**
+4. Asigna un nombre descriptivo (por ejemplo, `producción` o `desarrollo`)
+5. Copia el valor generado — **solo se muestra una vez**
+
+<Warning>
+  Si pierdes tu API key, deberás revocarla y generar una nueva. Folyo no permite recuperar el valor de una clave ya creada.
+</Warning>
+
+## Cómo autenticar tus peticiones
+
+Incluye tu API key en el header HTTP `Authorization` con el prefijo `Bearer`:
+
+```
+Authorization: Bearer <tu_api_key>
+```
+
+Los ejemplos a continuación muestran cómo hacer una petición autenticada al endpoint de emisión de DTE en distintos lenguajes:
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.folyo.cl/v1/dte/emitir \
+  -H "Authorization: Bearer $FOLYO_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tipo_dte": 33,
+    "receptor": {
+      "rut": "76354771-K",
+      "razon_social": "Empresa Ejemplo SpA",
+      "giro": "Servicios de software",
+      "direccion": "Av. Providencia 1234",
+      "ciudad": "Santiago"
+    },
+    "detalle": [
+      {
+        "nombre": "Servicio de desarrollo",
+        "cantidad": 1,
+        "precio_unitario": 100000
+      }
+    ]
+  }'
+```
+
+```javascript Node.js (fetch)
+const response = await fetch('https://api.folyo.cl/v1/dte/emitir', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.FOLYO_API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    tipo_dte: 33,
+    receptor: {
+      rut: '76354771-K',
+      razon_social: 'Empresa Ejemplo SpA',
+      giro: 'Servicios de software',
+      direccion: 'Av. Providencia 1234',
+      ciudad: 'Santiago',
+    },
+    detalle: [
+      {
+        nombre: 'Servicio de desarrollo',
+        cantidad: 1,
+        precio_unitario: 100000,
+      },
+    ],
+  }),
+});
+
+const data = await response.json();
+console.log(data);
+```
+
+```python Python (requests)
+import os
+import requests
+
+response = requests.post(
+    'https://api.folyo.cl/v1/dte/emitir',
+    headers={
+        'Authorization': f'Bearer {os.environ["FOLYO_API_KEY"]}',
+        'Content-Type': 'application/json',
+    },
+    json={
+        'tipo_dte': 33,
+        'receptor': {
+            'rut': '76354771-K',
+            'razon_social': 'Empresa Ejemplo SpA',
+            'giro': 'Servicios de software',
+            'direccion': 'Av. Providencia 1234',
+            'ciudad': 'Santiago',
+        },
+        'detalle': [
+            {
+                'nombre': 'Servicio de desarrollo',
+                'cantidad': 1,
+                'precio_unitario': 100000,
+            }
+        ],
+    },
+)
+
+print(response.json())
+```
+
+</CodeGroup>
+
+## Errores de autenticación
+
+Cuando una petición falla por problemas de autenticación, la API devuelve un código HTTP `401` con el siguiente body:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "codigo": "AUTH_INVALID_KEY",
+    "mensaje": "La API key proporcionada no es válida o ha sido revocada."
+  }
+}
+```
+
+Las causas más comunes de un error `401` son:
+
+| Causa                              | Solución                                                              |
+|------------------------------------|-----------------------------------------------------------------------|
+| API key incorrecta o con typos     | Verifica que copiaste el valor completo desde el dashboard            |
+| API key revocada                   | Genera una nueva clave en **Configuración → API Keys**                |
+| Header `Authorization` ausente     | Asegúrate de incluir el header en todas las peticiones                |
+| Prefijo `Bearer` faltante          | El formato correcto es `Authorization: Bearer <clave>`, no solo la clave |
+
+## Buenas prácticas de seguridad
+
+<Tip>
+  Trata tu API key como una contraseña. Si alguien obtiene tu clave, puede emitir documentos tributarios a nombre de tu empresa.
+</Tip>
+
+**Usa variables de entorno.** Nunca escribas tu API key directamente en el código fuente:
+
+```bash
+# .env
+FOLYO_API_KEY=tu_api_key_aquí
+```
+
+**No subas claves a repositorios.** Agrega `.env` a tu `.gitignore` para evitar exponer credenciales:
+
+```bash
+# .gitignore
+.env
+.env.local
+.env.production
+```
+
+**Usa claves distintas por entorno.** Crea una API key para desarrollo y otra para producción. Así puedes revocar la de desarrollo sin afectar tus emisiones en producción.
+
+**Rota las claves periódicamente.** Si sospechas que una clave fue comprometida, revócala de inmediato desde el dashboard y genera una nueva.
+
+<Warning>
+  Si detectas emisiones de DTE que no reconoces en tu cuenta, revoca todas tus API keys de inmediato y contacta al soporte de Folyo en hola@folyo.cl.
+</Warning>
+
+## Siguiente paso
+
+Con la autenticación configurada, ya puedes explorar todos los endpoints disponibles en la [referencia de la API](/api-reference/introduccion).

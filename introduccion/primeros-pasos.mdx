@@ -1,0 +1,136 @@
+---
+title: "Primeros pasos con Folyo: emite tu primer DTE ahora"
+description: "Aprende a configurar tu cuenta de Folyo y emitir tu primer documento tributario electrónico al SII en menos de 5 minutos, paso a paso."
+---
+
+Esta guía te lleva desde cero hasta tu primera emisión exitosa de un DTE. Al terminar habrás creado tu cuenta, obtenido tu API key, emitido una Factura Electrónica de prueba y verificado que el SII la recibió correctamente. El proceso completo toma menos de 5 minutos.
+
+## Requisitos previos
+
+Antes de comenzar, asegúrate de contar con:
+
+- Una empresa habilitada como emisor electrónico ante el SII
+- Acceso a una terminal con `curl` o cualquier cliente HTTP
+- Un RUT de receptor válido para las pruebas (puedes usar el de tu propia empresa)
+
+## Pasos para emitir tu primer DTE
+
+<Steps>
+  <Step title="Crea tu cuenta en Folyo">
+    Ve a [folyo.cl](https://folyo.cl) y crea tu cuenta. Durante el registro se te pedirá el RUT de tu empresa y tus credenciales del SII para vincular tu cuenta de emisor electrónico.
+
+    <Note>
+      Folyo actualmente está en acceso anticipado. Si no puedes completar el registro de forma inmediata, escríbenos a hola@folyo.cl para que te habilitemos manualmente.
+    </Note>
+  </Step>
+
+  <Step title="Obtén tu API key">
+    Una vez dentro del dashboard, navega a **Configuración → API Keys** y genera una nueva clave. Copia el valor — no se mostrará de nuevo después de cerrar el modal.
+
+    Guarda tu API key en una variable de entorno para no exponerla en tu código:
+
+    ```bash
+    export FOLYO_API_KEY="tu_api_key_aquí"
+    ```
+  </Step>
+
+  <Step title="Emite tu primera Factura Electrónica">
+    Envía un `POST` a `https://api.folyo.cl/v1/dte/emitir` con los datos del documento. El campo `tipo_dte: 33` corresponde a una Factura Electrónica estándar.
+
+    ```bash
+    curl -X POST https://api.folyo.cl/v1/dte/emitir \
+      -H "Authorization: Bearer $FOLYO_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "tipo_dte": 33,
+        "receptor": {
+          "rut": "76354771-K",
+          "razon_social": "Empresa Ejemplo SpA",
+          "giro": "Servicios de software",
+          "direccion": "Av. Providencia 1234",
+          "ciudad": "Santiago"
+        },
+        "detalle": [
+          {
+            "nombre": "Servicio de desarrollo",
+            "cantidad": 1,
+            "precio_unitario": 100000
+          }
+        ]
+      }'
+    ```
+
+    Si la emisión es exitosa, recibirás una respuesta como esta:
+
+    ```json
+    {
+      "ok": true,
+      "track_id": "ABC123XYZ789",
+      "folio": 1,
+      "tipo_dte": 33
+    }
+    ```
+
+    Guarda el `track_id` — lo necesitarás en el siguiente paso.
+  </Step>
+
+  <Step title="Verifica el estado en el SII">
+    Usa el `track_id` para consultar si el SII aceptó el documento:
+
+    ```bash
+    curl -X GET https://api.folyo.cl/v1/dte/ABC123XYZ789/estado \
+      -H "Authorization: Bearer $FOLYO_API_KEY"
+    ```
+
+    Una respuesta exitosa se ve así:
+
+    ```json
+    {
+      "ok": true,
+      "track_id": "ABC123XYZ789",
+      "estado": "ACEPTADO",
+      "glosa": "Trabajo terminado.",
+      "folio": 1,
+      "tipo_dte": 33
+    }
+    ```
+
+    El campo `estado` puede tomar los valores `ACEPTADO`, `PENDIENTE` o `RECHAZADO`. Un estado `ACEPTADO` confirma que el SII reconoce el documento como válido.
+
+    <Tip>
+      El SII puede tardar algunos segundos en procesar el documento tras la emisión. Si el estado devuelve `PENDIENTE`, espera unos segundos y vuelve a consultar.
+    </Tip>
+  </Step>
+</Steps>
+
+## Estructura del body de emisión
+
+La tabla a continuación describe los campos principales del body del endpoint `/dte/emitir`:
+
+| Campo                        | Tipo     | Requerido | Descripción                                                  |
+|------------------------------|----------|-----------|--------------------------------------------------------------|
+| `tipo_dte`                   | número   | Sí        | Código del tipo de DTE (ej. `33` para Factura Electrónica)   |
+| `receptor.rut`               | string   | Sí        | RUT del receptor con dígito verificador (ej. `76354771-K`)   |
+| `receptor.razon_social`      | string   | Sí        | Razón social del receptor                                    |
+| `receptor.giro`              | string   | Sí        | Giro comercial del receptor                                  |
+| `receptor.direccion`         | string   | Sí        | Dirección del receptor                                       |
+| `receptor.ciudad`            | string   | Sí        | Ciudad del receptor                                          |
+| `detalle`                    | array    | Sí        | Lista de ítems o servicios del documento                     |
+| `detalle[].nombre`           | string   | Sí        | Nombre del ítem o servicio                                   |
+| `detalle[].cantidad`         | número   | Sí        | Cantidad                                                     |
+| `detalle[].precio_unitario`  | número   | Sí        | Precio unitario en pesos chilenos (sin IVA)                  |
+
+<Note>
+  El IVA (19%) se calcula y agrega automáticamente para documentos afectos como la Factura Electrónica (tipo 33). Para documentos exentos como el tipo 34, no se agrega IVA.
+</Note>
+
+## Siguientes pasos
+
+<CardGroup cols={2}>
+  <Card title="Autenticación" icon="key" href="/introduccion/autenticacion">
+    Aprende las mejores prácticas para manejar tu API key de forma segura.
+  </Card>
+  <Card title="Tipos de DTE" icon="files" href="/conceptos/tipos-dte">
+    Conoce los 8 tipos de documentos disponibles y cuándo usar cada uno.
+  </Card>
+</CardGroup>

@@ -1,0 +1,257 @@
+---
+title: "GET /dte/{track_id} — Estado y detalle del documento"
+description: "Consulta el estado de aceptación de un DTE ante el SII usando su track_id. Incluye endpoint de estado rápido y endpoint de detalle completo."
+---
+
+Una vez emitido un DTE, el SII puede tardar algunos minutos en procesarlo y devolver su resolución. Folyo expone dos endpoints para consultar el estado de un documento: uno ligero para verificar rápidamente si fue aceptado o rechazado, y otro completo que devuelve todos los datos del DTE. Ambos requieren el `track_id` que recibiste al momento de emitir el documento.
+
+## Endpoints
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `GET` | `https://api.folyo.cl/v1/dte/{track_id}` | Detalle completo del DTE |
+| `GET` | `https://api.folyo.cl/v1/dte/{track_id}/estado` | Estado actual (respuesta ligera) |
+
+## Parámetros de ruta
+
+<ParamField path="track_id" type="string" required>
+  El identificador de seguimiento del DTE, obtenido en el campo `track_id` de la respuesta de `POST /dte/emitir`. Ejemplo: `folyo_abc123xyz`.
+</ParamField>
+
+## Respuesta — GET /dte/{track_id}/estado
+
+Este endpoint devuelve únicamente la información de estado del documento, ideal para polling o verificaciones rápidas.
+
+<ResponseField name="ok" type="boolean" required>
+  `true` si la consulta fue exitosa y el documento existe.
+</ResponseField>
+
+<ResponseField name="track_id" type="string" required>
+  El identificador del documento consultado.
+</ResponseField>
+
+<ResponseField name="estado" type="string" required>
+  Estado actual del DTE en la plataforma Folyo. Los valores posibles son `"ACEPTADO"`, `"RECHAZADO"` y `"PENDIENTE"`. Consulta la tabla de estados más abajo.
+</ResponseField>
+
+<ResponseField name="sii_estado" type="string">
+  Código de estado reportado directamente por el SII. Puede ser `null` mientras el documento aún está siendo procesado.
+</ResponseField>
+
+<ResponseField name="emitido_en" type="string" required>
+  Timestamp de emisión del documento en formato ISO 8601 UTC.
+</ResponseField>
+
+## Respuesta — GET /dte/{track_id}
+
+Este endpoint devuelve el detalle completo del documento, incluyendo todos los campos del receptor, los ítems del detalle y los montos calculados.
+
+<ResponseField name="ok" type="boolean" required>
+  `true` si la consulta fue exitosa.
+</ResponseField>
+
+<ResponseField name="track_id" type="string" required>
+  Identificador del documento.
+</ResponseField>
+
+<ResponseField name="folio" type="integer" required>
+  Número de folio asignado al documento.
+</ResponseField>
+
+<ResponseField name="tipo_dte" type="integer" required>
+  Código del tipo de DTE.
+</ResponseField>
+
+<ResponseField name="estado" type="string" required>
+  Estado actual del DTE: `"ACEPTADO"`, `"RECHAZADO"` o `"PENDIENTE"`.
+</ResponseField>
+
+<ResponseField name="sii_estado" type="string">
+  Estado reportado por el SII.
+</ResponseField>
+
+<ResponseField name="receptor" type="object" required>
+  Datos del receptor del documento.
+
+  <Expandable title="Propiedades de receptor">
+    <ResponseField name="receptor.rut" type="string">
+      RUT del receptor.
+    </ResponseField>
+    <ResponseField name="receptor.razon_social" type="string">
+      Razón social del receptor.
+    </ResponseField>
+    <ResponseField name="receptor.giro" type="string">
+      Giro del receptor.
+    </ResponseField>
+    <ResponseField name="receptor.direccion" type="string">
+      Dirección del receptor.
+    </ResponseField>
+    <ResponseField name="receptor.ciudad" type="string">
+      Ciudad del receptor.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="detalle" type="object[]" required>
+  Lista de ítems del documento.
+
+  <Expandable title="Propiedades de cada ítem">
+    <ResponseField name="detalle[].nombre" type="string">
+      Descripción del ítem.
+    </ResponseField>
+    <ResponseField name="detalle[].cantidad" type="integer">
+      Cantidad.
+    </ResponseField>
+    <ResponseField name="detalle[].precio_unitario" type="integer">
+      Precio unitario neto en CLP.
+    </ResponseField>
+    <ResponseField name="detalle[].monto_item" type="integer">
+      Monto total del ítem (cantidad × precio_unitario).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="montos" type="object" required>
+  Resumen de montos del documento.
+
+  <Expandable title="Propiedades de montos">
+    <ResponseField name="montos.neto" type="integer">
+      Monto neto en CLP (antes de IVA). `0` para documentos exentos.
+    </ResponseField>
+    <ResponseField name="montos.iva" type="integer">
+      Monto de IVA en CLP. `0` para documentos exentos.
+    </ResponseField>
+    <ResponseField name="montos.exento" type="integer">
+      Monto exento de IVA en CLP.
+    </ResponseField>
+    <ResponseField name="montos.total" type="integer">
+      Monto total del documento en CLP.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="emitido_en" type="string" required>
+  Timestamp de emisión en formato ISO 8601 UTC.
+</ResponseField>
+
+## Estados del DTE
+
+| Estado | Significado |
+|--------|-------------|
+| `PENDIENTE` | El DTE fue emitido por Folyo y enviado al SII, pero aún no hay resolución. El procesamiento del SII puede tardar entre segundos y algunos minutos. |
+| `ACEPTADO` | El SII recibió y aceptó el documento. Es válido tributariamente y puede entregarse al receptor como comprobante definitivo. |
+| `RECHAZADO` | El SII rechazó el documento. El campo `sii_estado` contiene el código de rechazo del SII. Debes emitir un nuevo DTE corrigiendo los datos. |
+
+## Ejemplos
+
+<CodeGroup>
+
+```bash cURL — Consultar estado (ligero)
+curl --request GET \
+  --url https://api.folyo.cl/v1/dte/folyo_abc123xyz/estado \
+  --header 'Authorization: Bearer tu_api_key'
+```
+
+```bash cURL — Obtener detalle completo
+curl --request GET \
+  --url https://api.folyo.cl/v1/dte/folyo_abc123xyz \
+  --header 'Authorization: Bearer tu_api_key'
+```
+
+```javascript JavaScript
+// Consulta ligera de estado
+const estadoRes = await fetch(
+  'https://api.folyo.cl/v1/dte/folyo_abc123xyz/estado',
+  {
+    headers: { 'Authorization': 'Bearer tu_api_key' },
+  }
+);
+const estado = await estadoRes.json();
+console.log(estado.estado); // "ACEPTADO" | "RECHAZADO" | "PENDIENTE"
+
+// Detalle completo
+const detalleRes = await fetch(
+  'https://api.folyo.cl/v1/dte/folyo_abc123xyz',
+  {
+    headers: { 'Authorization': 'Bearer tu_api_key' },
+  }
+);
+const detalle = await detalleRes.json();
+console.log(detalle.montos.total);
+```
+
+```python Python
+import requests
+
+headers = {'Authorization': 'Bearer tu_api_key'}
+track_id = 'folyo_abc123xyz'
+
+# Consulta ligera de estado
+estado_res = requests.get(
+    f'https://api.folyo.cl/v1/dte/{track_id}/estado',
+    headers=headers
+)
+estado = estado_res.json()
+print(estado['estado'])  # "ACEPTADO" | "RECHAZADO" | "PENDIENTE"
+
+# Detalle completo
+detalle_res = requests.get(
+    f'https://api.folyo.cl/v1/dte/{track_id}',
+    headers=headers
+)
+detalle = detalle_res.json()
+print(detalle['montos']['total'])
+```
+
+</CodeGroup>
+
+**Respuesta de `/estado`:**
+
+```json
+{
+  "ok": true,
+  "track_id": "folyo_abc123xyz",
+  "estado": "ACEPTADO",
+  "sii_estado": "DOK",
+  "emitido_en": "2026-05-08T14:32:00Z"
+}
+```
+
+**Respuesta de detalle completo:**
+
+```json
+{
+  "ok": true,
+  "track_id": "folyo_abc123xyz",
+  "folio": 125,
+  "tipo_dte": 33,
+  "estado": "ACEPTADO",
+  "sii_estado": "DOK",
+  "receptor": {
+    "rut": "76.123.456-7",
+    "razon_social": "Empresa Ejemplo SpA",
+    "giro": "Desarrollo de software",
+    "direccion": "Av. Providencia 1234, Of. 501",
+    "ciudad": "Santiago"
+  },
+  "detalle": [
+    {
+      "nombre": "Licencia de software anual",
+      "cantidad": 1,
+      "precio_unitario": 500000,
+      "monto_item": 500000
+    }
+  ],
+  "montos": {
+    "neto": 500000,
+    "iva": 95000,
+    "exento": 0,
+    "total": 595000
+  },
+  "emitido_en": "2026-05-08T14:32:00Z"
+}
+```
+
+<Note>
+Si necesitas confirmar la aceptación del SII antes de entregar el documento al receptor, consulta el estado con un intervalo de 5 a 10 segundos después de la emisión. En la gran mayoría de los casos el SII responde dentro de los primeros 30 segundos. Si el estado sigue en `PENDIENTE` después de 5 minutos, contacta a soporte con tu `track_id`.
+</Note>

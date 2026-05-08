@@ -1,0 +1,71 @@
+---
+title: "Qué es Folyo: facturación electrónica vía API REST"
+description: "Folyo es una API REST para emitir facturas y documentos tributarios electrónicos al SII de Chile con una sola llamada HTTP, sin gestionar certificados."
+---
+
+Folyo es una API REST diseñada para desarrolladores que necesitan integrar facturación electrónica en sus aplicaciones sin lidiar con la complejidad del SII. En lugar de implementar protocolos SOAP heredados, gestionar certificados digitales manualmente o depender de intermediarios, Folyo expone un único endpoint HTTP: envías los datos del documento y recibes confirmación de emisión en menos de 2 segundos. Esta página explica qué es Folyo, cómo funciona internamente y para quién está pensado.
+
+## Qué hace Folyo
+
+Folyo actúa como capa de abstracción entre tu aplicación y el SII. Cuando llamas a la API, Folyo se encarga de:
+
+- Firmar el documento con el certificado digital correspondiente
+- Formatear el XML según las especificaciones técnicas del SII
+- Enviar el DTE al SII y monitorear su recepción
+- Devolverte un `track_id` para que puedas consultar el estado en cualquier momento
+
+Todo esto ocurre en el ciclo de vida de una sola petición HTTP, sin colas de procesamiento asíncronas ni pasos intermedios adicionales.
+
+## Características principales
+
+<CardGroup cols={2}>
+  <Card title="1 llamada API" icon="bolt">
+    Emite cualquier DTE con un único `POST`. No hay pasos previos de preparación ni confirmaciones manuales.
+  </Card>
+  <Card title="Menos de 2 segundos" icon="gauge-high">
+    El documento llega al SII en tiempo real. Folyo mantiene conexiones persistentes con la infraestructura del SII para minimizar la latencia.
+  </Card>
+  <Card title="8 tipos de DTE" icon="files">
+    Facturas electrónicas, boletas, notas de crédito, notas de débito, liquidaciones y más — todos los documentos tributarios chilenos relevantes para operaciones comerciales.
+  </Card>
+  <Card title="Sin intermediarios" icon="shield-check">
+    Folyo se conecta directamente al SII. No hay terceros en la cadena de emisión, lo que reduce puntos de falla y mejora la trazabilidad.
+  </Card>
+  <Card title="REST sobre HTTPS" icon="code">
+    JSON de entrada y salida. Sin XML que construir a mano, sin librerías propietarias que instalar.
+  </Card>
+  <Card title="Folios administrados" icon="hash">
+    Folyo gestiona la asignación de folios por tipo de DTE. No necesitas solicitar rangos de folios al SII por tu cuenta.
+  </Card>
+</CardGroup>
+
+## Tipos de DTE soportados
+
+Folyo soporta los 8 tipos de Documentos Tributarios Electrónicos más utilizados en Chile:
+
+| Código | Tipo de documento            |
+|--------|------------------------------|
+| 33     | Factura electrónica          |
+| 34     | Factura no afecta o exenta   |
+| 39     | Boleta electrónica           |
+| 41     | Boleta no afecta o exenta    |
+| 56     | Nota de débito electrónica   |
+| 61     | Nota de crédito electrónica  |
+| 52     | Guía de despacho electrónica |
+| 110    | Factura de exportación       |
+
+## Para quién es Folyo
+
+**Desarrolladores** que construyen aplicaciones de gestión empresarial, e-commerce, ERP o cualquier sistema que necesite emitir documentos tributarios. Folyo está pensado como un bloque de construcción que se integra en horas, no en semanas.
+
+**Startups y empresas SaaS** que ofrecen facturación a sus propios clientes y necesitan una solución confiable sin tener que convertirse en expertos en normativa tributaria chilena.
+
+**Contadores y estudios contables** que operan con sistemas propios y quieren automatizar la emisión de documentos para múltiples RUTs bajo una misma integración.
+
+<Note>
+  Folyo requiere que tu empresa esté habilitada como emisor electrónico ante el SII. Si aún no tienes esa habilitación, consulta el proceso en [sii.cl](https://www.sii.cl) antes de comenzar la integración.
+</Note>
+
+## Siguiente paso
+
+Si ya tienes tu cuenta lista, sigue con [Primeros pasos](/introduccion/primeros-pasos) para emitir tu primer DTE en menos de 5 minutos.

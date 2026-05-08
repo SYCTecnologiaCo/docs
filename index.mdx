@@ -1,0 +1,52 @@
+---
+title: "Folyo: emite facturas electrónicas directas al SII"
+description: "Folyo te permite emitir facturas y documentos tributarios electrónicos al SII con una sola llamada API. Sin intermediarios, sin complicaciones."
+---
+
+Folyo es la API de facturación electrónica más directa de Chile. Con una sola petición HTTP emites cualquiera de los 8 tipos de DTE soportados y el documento llega al SII en menos de 2 segundos, sin necesidad de integrar proveedores externos ni gestionar certificados manualmente.
+
+<CardGroup cols={2}>
+  <Card title="Primeros pasos" icon="rocket" href="/introduccion/primeros-pasos">
+    Haz tu primera emisión de DTE en minutos. Guía paso a paso desde cero.
+  </Card>
+  <Card title="Autenticación" icon="key" href="/introduccion/autenticacion">
+    Aprende cómo obtener tu API key y autenticar todas tus peticiones.
+  </Card>
+  <Card title="Tipos de DTE" icon="file-invoice" href="/conceptos/tipos-dte">
+    Conoce los 8 tipos de documentos tributarios que puedes emitir con Folyo.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/introduccion">
+    Referencia completa de todos los endpoints, parámetros y respuestas.
+  </Card>
+</CardGroup>
+
+## Cómo funciona
+
+<Steps>
+  <Step title="Crea tu cuenta y obtén tu API key">
+    Regístrate en [folyo.cl](https://folyo.cl) y accede a tu dashboard para generar tu API key de acceso.
+  </Step>
+  <Step title="Configura la autenticación">
+    Incluye tu API key en el header `Authorization: Bearer <tu_api_key>` en cada petición.
+  </Step>
+  <Step title="Emite tu primer DTE">
+    Envía un `POST` a `api.folyo.cl/v1/dte/emitir` con los datos del documento. Recibirás un `track_id` de confirmación.
+  </Step>
+  <Step title="Consulta el estado">
+    Usa el `track_id` para verificar que el SII recibió y aceptó tu documento.
+  </Step>
+</Steps>
+
+## ¿Por qué Folyo?
+
+<CardGroup cols={3}>
+  <Card title="1 llamada API" icon="bolt">
+    Todo el proceso de emisión en una sola petición HTTP. Sin múltiples pasos ni estados intermedios complejos.
+  </Card>
+  <Card title="Menos de 2 segundos" icon="gauge-high">
+    Tus documentos llegan al SII en tiempo real. Sin colas de procesamiento ni demoras.
+  </Card>
+  <Card title="8 tipos de DTE" icon="files">
+    Facturas, boletas, notas de crédito, notas de débito y más — todos los documentos tributarios que necesitas.
+  </Card>
+</CardGroup>

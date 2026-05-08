@@ -1,0 +1,70 @@
+{
+  "projectType": "saas",
+  "projectName": "Folyo",
+  "projectDescription": "Folyo es una API de facturación electrónica chilena que permite emitir documentos tributarios electrónicos (DTE) directamente al SII con una sola llamada.",
+  "theme": "luma",
+  "primaryColor": "#1A1A1A",
+  "lightColor": "#F5F5F5",
+  "darkColor": "#0D0D0D",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentación",
+        "groups": [
+          {
+            "group": "Introducción",
+            "pages": [
+              "introduccion/que-es-folyo",
+              "introduccion/primeros-pasos",
+              "introduccion/autenticacion"
+            ]
+          },
+          {
+            "group": "Conceptos Clave",
+            "pages": [
+              "conceptos/tipos-dte",
+              "conceptos/flujo-emision",
+              "conceptos/sii-integracion"
+            ]
+          },
+          {
+            "group": "Guías",
+            "pages": [
+              "guias/emitir-factura",
+              "guias/emitir-boleta",
+              "guias/notas-credito-debito",
+              "guias/manejo-errores"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Referencia API",
+            "pages": [
+              "api-reference/introduccion",
+              "api-reference/emitir-dte",
+              "api-reference/consultar-estado",
+              "api-reference/codigos-error"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Emisión de DTEs directamente al SII con una sola llamada API",
+    "Soporte para 8 tipos de DTE (facturas, boletas, notas de crédito/débito, etc.)",
+    "Emisión en menos de 2 segundos",
+    "API REST simple con autenticación por API key",
+    "Integración directa sin intermediarios"
+  ],
+  "publicApiSurface": [
+    "POST api.folyo.cl/v1/dte/emitir",
+    "GET api.folyo.cl/v1/dte/{track_id}/estado",
+    "GET api.folyo.cl/v1/dte/{track_id}",
+    "POST api.folyo.cl/v1/dte/anular"
+  ]
+}

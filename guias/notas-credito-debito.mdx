@@ -1,0 +1,201 @@
+---
+title: "Emitir notas de crédito y débito con Folyo (DTE 56/61)"
+description: "Aprende cuándo y cómo emitir Notas de Crédito (DTE 61) y Notas de Débito (DTE 56) para corregir documentos tributarios ya emitidos con Folyo."
+---
+
+Las notas de crédito y débito electrónicas son documentos tributarios que permiten corregir una Factura Electrónica ya emitida y aceptada por el SII. Toda corrección posterior a la emisión debe formalizarse mediante uno de estos dos documentos: no es posible modificar ni eliminar directamente una factura una vez que el SII la ha registrado. La diferencia fundamental es el sentido de la corrección: la nota de crédito reduce o anula el monto original, mientras que la nota de débito lo aumenta.
+
+## ¿Cuándo usar cada tipo?
+
+<CardGroup cols={2}>
+  <Card title="Nota de Crédito (DTE 61)" icon="circle-minus">
+    Úsala cuando necesitas **reducir** el monto de una factura emitida, corregir un error que implique menos cobro, o **anular completamente** el documento original.
+  </Card>
+  <Card title="Nota de Débito (DTE 56)" icon="circle-plus">
+    Úsala cuando necesitas **aumentar** el monto de una factura emitida, agregar cargos adicionales no contemplados, o corregir un error que implique mayor cobro.
+  </Card>
+</CardGroup>
+
+## El campo `referencia`
+
+Tanto la nota de crédito como la nota de débito deben referenciar el documento original que están corrigiendo. Esto se hace mediante el campo `referencia` en el cuerpo de la petición:
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `referencia.tipo_dte_ref` | `number` | Tipo DTE del documento original (ej. `33` para factura) |
+| `referencia.folio_ref` | `number` | Número de folio del documento original |
+| `referencia.razon` | `string` | Descripción de la razón de la corrección |
+
+El SII utiliza esta referencia para vincular la corrección al documento original y actualizar el crédito fiscal del receptor.
+
+## Ejemplos de emisión
+
+<Tabs>
+  <Tab title="Nota de Crédito (61)">
+    Emite una nota de crédito para anular o reducir una factura existente.
+
+    <CodeGroup>
+
+    ```bash cURL
+    curl -X POST https://api.folyo.cl/v1/dte/emitir \
+      -H "Authorization: Bearer <tu_api_key>" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "tipo_dte": 61,
+        "receptor": {
+          "rut": "76354771-K",
+          "razon_social": "Empresa Cliente SpA",
+          "giro": "Comercio al por mayor",
+          "direccion": "Av. Apoquindo 5678",
+          "ciudad": "Santiago"
+        },
+        "referencia": {
+          "tipo_dte_ref": 33,
+          "folio_ref": 42,
+          "razon": "Anulación de factura"
+        },
+        "detalle": [
+          {
+            "nombre": "Anulación consultoría mensual",
+            "cantidad": 1,
+            "precio_unitario": 500000
+          }
+        ]
+      }'
+    ```
+
+    ```javascript Node.js
+    const response = await fetch('https://api.folyo.cl/v1/dte/emitir', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer <tu_api_key>',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tipo_dte: 61,
+        receptor: {
+          rut: '76354771-K',
+          razon_social: 'Empresa Cliente SpA',
+          giro: 'Comercio al por mayor',
+          direccion: 'Av. Apoquindo 5678',
+          ciudad: 'Santiago',
+        },
+        referencia: {
+          tipo_dte_ref: 33,
+          folio_ref: 42,
+          razon: 'Anulación de factura',
+        },
+        detalle: [
+          { nombre: 'Anulación consultoría mensual', cantidad: 1, precio_unitario: 500000 },
+        ],
+      }),
+    });
+
+    const data = await response.json();
+    console.log(data.track_id);
+    ```
+
+    </CodeGroup>
+  </Tab>
+  <Tab title="Nota de Débito (56)">
+    Emite una nota de débito para aumentar el monto de una factura existente o agregar cargos adicionales.
+
+    <CodeGroup>
+
+    ```bash cURL
+    curl -X POST https://api.folyo.cl/v1/dte/emitir \
+      -H "Authorization: Bearer <tu_api_key>" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "tipo_dte": 56,
+        "receptor": {
+          "rut": "76354771-K",
+          "razon_social": "Empresa Cliente SpA",
+          "giro": "Comercio al por mayor",
+          "direccion": "Av. Apoquindo 5678",
+          "ciudad": "Santiago"
+        },
+        "referencia": {
+          "tipo_dte_ref": 33,
+          "folio_ref": 42,
+          "razon": "Diferencia de precio por ajuste de tarifa"
+        },
+        "detalle": [
+          {
+            "nombre": "Ajuste tarifa consultoría",
+            "cantidad": 1,
+            "precio_unitario": 80000
+          }
+        ]
+      }'
+    ```
+
+    ```javascript Node.js
+    const response = await fetch('https://api.folyo.cl/v1/dte/emitir', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer <tu_api_key>',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tipo_dte: 56,
+        receptor: {
+          rut: '76354771-K',
+          razon_social: 'Empresa Cliente SpA',
+          giro: 'Comercio al por mayor',
+          direccion: 'Av. Apoquindo 5678',
+          ciudad: 'Santiago',
+        },
+        referencia: {
+          tipo_dte_ref: 33,
+          folio_ref: 42,
+          razon: 'Diferencia de precio por ajuste de tarifa',
+        },
+        detalle: [
+          { nombre: 'Ajuste tarifa consultoría', cantidad: 1, precio_unitario: 80000 },
+        ],
+      }),
+    });
+
+    const data = await response.json();
+    console.log(data.track_id);
+    ```
+
+    </CodeGroup>
+  </Tab>
+</Tabs>
+
+## Respuesta esperada
+
+La estructura de la respuesta es idéntica para ambos tipos de nota:
+
+```json Respuesta exitosa
+{
+  "ok": true,
+  "data": {
+    "track_id": "TRK-2026-00041965",
+    "folio": 12,
+    "tipo_dte": 61,
+    "monto_neto": 500000,
+    "monto_iva": 95000,
+    "monto_total": 595000,
+    "timestamp": "2026-05-08T16:05:33.000Z",
+    "estado_sii": "ACEPTADO"
+  }
+}
+```
+
+<Warning>
+No puedes anular una Nota de Crédito emitiendo otra Nota de Crédito sobre ella. Las notas de crédito solo pueden referenciar facturas (tipo DTE 33) u otros documentos de venta originales, no otras notas de crédito. Si emitiste una nota de crédito por error, contacta al soporte de Folyo para evaluar las opciones disponibles según la normativa del SII.
+</Warning>
+
+## Siguientes pasos
+
+<CardGroup cols={2}>
+  <Card title="Emitir una Factura" icon="file-invoice" href="/guias/emitir-factura">
+    Revisa cómo emitir la factura original antes de necesitar corregirla.
+  </Card>
+  <Card title="Manejo de errores" icon="triangle-exclamation" href="/guias/manejo-errores">
+    Aprende a manejar rechazos del SII y otros errores de la API.
+  </Card>
+</CardGroup>

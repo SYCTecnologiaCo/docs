@@ -1,0 +1,68 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "Folyo",
+  "theme": "luma",
+  "colors": {
+    "primary": "#1A1A1A",
+    "light": "#F5F5F5",
+    "dark": "#0D0D0D"
+  },
+  "logo": {
+    "light": "https://media.brand.dev/d0500c52-bfae-442e-b01d-823cb75766ae.svg",
+    "dark": "https://media.brand.dev/d0500c52-bfae-442e-b01d-823cb75766ae.svg"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/folyo"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentación",
+        "groups": [
+          {
+            "group": "Introducción",
+            "pages": [
+              "introduccion/que-es-folyo",
+              "introduccion/primeros-pasos",
+              "introduccion/autenticacion"
+            ]
+          },
+          {
+            "group": "Conceptos Clave",
+            "pages": [
+              "conceptos/tipos-dte",
+              "conceptos/flujo-emision",
+              "conceptos/sii-integracion"
+            ]
+          },
+          {
+            "group": "Guías",
+            "pages": [
+              "guias/emitir-factura",
+              "guias/emitir-boleta",
+              "guias/notas-credito-debito",
+              "guias/manejo-errores"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Referencia API",
+            "pages": [
+              "api-reference/introduccion",
+              "api-reference/emitir-dte",
+              "api-reference/consultar-estado",
+              "api-reference/codigos-error"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

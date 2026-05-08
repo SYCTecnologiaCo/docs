@@ -1,0 +1,143 @@
+---
+title: "Introducción a la API REST de Folyo: guía de inicio"
+description: "Aprende cómo autenticarte, estructurar tus requests y comenzar a emitir documentos tributarios electrónicos con la API de Folyo desde tu aplicación."
+---
+
+La API REST de Folyo te permite emitir, consultar y anular Documentos Tributarios Electrónicos (DTE) directamente ante el Servicio de Impuestos Internos (SII) de Chile, todo desde tu propia aplicación. Está diseñada para desarrolladores que necesitan integrar facturación electrónica —facturas, boletas, notas de crédito y más— sin tener que gestionar certificados digitales, folios CAF ni la comunicación directa con el SII. Todos los requests y responses usan JSON, y la autenticación se realiza mediante una API key.
+
+## URL base y versionado
+
+Todos los endpoints de la API están disponibles bajo la siguiente URL base:
+
+```
+https://api.folyo.cl/v1
+```
+
+La versión actual es `v1`. Cuando se introduzcan cambios que rompan la compatibilidad, se publicará una nueva versión (p. ej. `v2`) manteniendo `v1` operativa durante un período de transición. Te notificaremos con anticipación a través del dashboard y por email.
+
+## Autenticación
+
+Todos los requests deben incluir tu API key en el header `Authorization` usando el esquema Bearer:
+
+```
+Authorization: Bearer <tu_api_key>
+```
+
+Puedes obtener y gestionar tus API keys desde el [dashboard de Folyo](https://app.folyo.cl). Nunca expongas tu API key en código del lado del cliente ni en repositorios públicos.
+
+<Warning>
+Si tu API key se ve comprometida, revócala inmediatamente desde el dashboard y genera una nueva. Los requests realizados con una key revocada recibirán un error `401`.
+</Warning>
+
+## Content-Type
+
+Todos los requests con body deben enviar el header `Content-Type: application/json`. Las respuestas de la API siempre son `application/json`.
+
+## Endpoints disponibles
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `POST` | `/dte/emitir` | Emite un nuevo DTE ante el SII |
+| `GET` | `/dte/{track_id}` | Obtiene el detalle completo de un DTE |
+| `GET` | `/dte/{track_id}/estado` | Consulta el estado actual de un DTE (respuesta ligera) |
+| `POST` | `/dte/anular` | Anula un DTE emitido mediante nota de crédito |
+
+## Rate limits
+
+Los límites de requests varían según tu plan. Si superas el límite, recibirás un error `429 Too Many Requests`. Puedes revisar tu uso actual y los límites de tu plan en el dashboard. Si necesitas un límite mayor para producción, contacta a soporte en [soporte@folyo.cl](mailto:soporte@folyo.cl).
+
+## Ejemplo rápido
+
+El siguiente ejemplo emite una boleta electrónica (tipo DTE 39) por un ítem de $10.000 CLP:
+
+<CodeGroup>
+
+```bash cURL
+curl --request POST \
+  --url https://api.folyo.cl/v1/dte/emitir \
+  --header 'Authorization: Bearer tu_api_key' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "tipo_dte": 39,
+    "receptor": {
+      "rut": "12.345.678-9"
+    },
+    "detalle": [
+      {
+        "nombre": "Consultoría de software",
+        "cantidad": 1,
+        "precio_unitario": 10000
+      }
+    ]
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.folyo.cl/v1/dte/emitir', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer tu_api_key',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    tipo_dte: 39,
+    receptor: {
+      rut: '12.345.678-9',
+    },
+    detalle: [
+      {
+        nombre: 'Consultoría de software',
+        cantidad: 1,
+        precio_unitario: 10000,
+      },
+    ],
+  }),
+});
+
+const data = await response.json();
+console.log(data.track_id);
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.folyo.cl/v1/dte/emitir',
+    headers={
+        'Authorization': 'Bearer tu_api_key',
+        'Content-Type': 'application/json',
+    },
+    json={
+        'tipo_dte': 39,
+        'receptor': {
+            'rut': '12.345.678-9',
+        },
+        'detalle': [
+            {
+                'nombre': 'Consultoría de software',
+                'cantidad': 1,
+                'precio_unitario': 10000,
+            }
+        ],
+    }
+)
+
+data = response.json()
+print(data['track_id'])
+```
+
+</CodeGroup>
+
+Si el request es exitoso, recibirás una respuesta similar a esta:
+
+```json
+{
+  "ok": true,
+  "track_id": "folyo_abc123xyz",
+  "folio": 42,
+  "tipo_dte": 39,
+  "emitido_en": "2026-05-08T14:32:00Z"
+}
+```
+
+Guarda el `track_id` —lo necesitarás para consultar el estado del documento y confirmar que el SII lo aceptó.
